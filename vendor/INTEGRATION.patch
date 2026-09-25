@@ -1,0 +1,536 @@
+--- upstream/rrsi/analyst.py
++++ vendor/rrsi/analyst.py
+@@ -143,7 +143,7 @@
+     for _ in range(MAX_TURNS):
+         prompt = (context + "\n\n=== INTERACTION LOG ===\n" + transcript
+                   + "\nReply with exactly one JSON action object.")
+-        raw = generate(prompt, system=system, json_only=True, model=model)
++        raw = generate(prompt, system=system, json_only=True, model=model, role="analyst")
+         try:
+             act = json.loads(raw)
+         except json.JSONDecodeError:
+@@ -167,6 +167,8 @@
+             for r in reqs:
+                 if isinstance(r, dict) and r.get("task_id") is not None:
+                     r["task_id"] = str(r["task_id"])
++                    if r.get("lens") not in {"failure", "capability_gap", "success"}:
++                        r["lens"] = "failure"
+             valid = [r for r in reqs if isinstance(r, dict) and r.get("task_id") in traces]
+             if reqs and not valid:
+                 print(f"[analyst] WARNING all {len(reqs)} requests had unknown "
+--- upstream/rrsi/calibrate.py
++++ vendor/rrsi/calibrate.py
+@@ -47,6 +47,7 @@
+ import random
+ import statistics as st
+ from pathlib import Path
++from .storage import atomic_text
+ 
+ from .evaluate import EvalResult
+ 
+@@ -109,7 +110,7 @@
+ 
+ 
+ def write(path: Path | str, cal: dict) -> None:
+-    Path(path).write_text(json.dumps(cal, indent=1))
++    atomic_text(Path(path), json.dumps(cal, indent=1))
+ 
+ 
+ def read_delta(path: Path | str) -> float | None:
+--- upstream/rrsi/critic.py
++++ vendor/rrsi/critic.py
+@@ -123,13 +123,13 @@
+     payload = (
+         f"CANDIDATE SUMMARY: {summary}\nTARGETS: {targets_mode}\n\n"
+         f"=== DECLARED EDITS (independent changes in this candidate) ===\n"
+-        f"{json.dumps(edits or [], ensure_ascii=False, indent=1)[:20_000]}\n\n"
+-        f"=== DIFF ===\n{diff[:120_000]}\n\n"
+-        f"=== STATE FILES (if a mechanism persists state) ===\n{state_files[:20_000]}"
++        f"{json.dumps(edits or [], ensure_ascii=False, indent=1)}\n\n"
++        f"=== DIFF ===\n{diff}\n\n"
++        f"=== STATE FILES (if a mechanism persists state) ===\n{state_files}"
+     )
+     last = ""
+     for _ in range(3):
+-        out = generate(payload, system=system, json_only=True, model=model)
++        out = generate(payload, system=system, json_only=True, model=model, role="critic")
+         last = out
+         try:
+             v = json.loads(out)
+--- upstream/rrsi/digester.py
++++ vendor/rrsi/digester.py
+@@ -30,7 +30,7 @@
+ conclusions, never whole traces.
+ 
+ Tools (jailed to the round's rendered-traces directory): read_file, glob,
+-grep, bash (write operations rejected). Returns structured JSON hard-capped at
++grep (host shell disabled by the Agent Zero adapter). Returns structured JSON hard-capped at
+ DIGEST_MAX_CHARS. Lenses: failure / capability_gap / success.
+ """
+ 
+@@ -38,7 +38,6 @@
+ 
+ import json
+ import re
+-import subprocess
+ from pathlib import Path
+ 
+ from .llm import generate
+@@ -46,13 +45,6 @@
+ MAX_TURNS = 15
+ DIGEST_MAX_CHARS = 6000
+ TOOL_OUT_CAP = 25_000
+-BASH_TIMEOUT = 30
+-
+-ALLOWED_BASH = {"grep", "egrep", "head", "tail", "wc", "cat", "ls", "find",
+-                "cut", "sort", "uniq", "awk", "jq", "sed", "tr", "paste"}
+-DENY_BASH = re.compile(r"(>>?|`|\$\(|sed\s+[^|]*-i|\brm\b|\bmv\b|\bcp\b|"
+-                       r"\btee\b|\btouch\b|\bmkdir\b|\bchmod\b|\bpython)")
+-
+ SCHEMAS = {
+     "failure": """{"task_id": "...", "lens": "failure",
+  "blocker": "one sentence: what mechanism lost the points",
+@@ -90,9 +82,7 @@
+   {{"action": "glob", "pattern": "*.txt"}}
+   {{"action": "grep", "pattern": "regex", "path": "<task_id>.txt", "max_hits": 40}}
+       (returns matching lines with line numbers)
+-  {{"action": "bash", "cmd": "grep -n 'FAILED' <task_id>.txt | head -30"}}
+-      (read-only shell: grep/head/tail/awk/jq/sed(no -i)/wc/...; any write
+-       operation is rejected)
++  Host shell commands are unavailable; use read_file, glob and grep only.
+   {{"action": "return", "digest": {{...}}}}
+ 
+ Investigate efficiently: read the grading / verifier section first (what
+@@ -110,19 +100,19 @@
+ 
+ 
+ def _bash_ok(cmd: str) -> bool:
+-    if DENY_BASH.search(cmd):
+-        return False
+-    for seg in re.split(r"[|;&]+", cmd):
+-        seg = seg.strip()
+-        if seg and seg.split()[0] not in ALLOWED_BASH:
+-            return False
+-    return True
++    """Use contained read_file/grep/glob; never invoke the controller shell."""
++    return False
+ 
+ 
+ def _safe(root: Path, rel: str) -> Path:
+     p = (root / rel).resolve()
+-    if not str(p).startswith(str(root.resolve())):
++    if not p.is_relative_to(root.resolve()) or Path(rel).is_absolute() or ".." in Path(rel).parts:
+         raise ValueError("path escapes the traces dir")
++    current = root
++    for part in Path(rel).parts:
++        current = current / part
++        if current.is_symlink():
++            raise ValueError("trace symlinks are not permitted")
+     return p
+ 
+ 
+@@ -166,7 +156,7 @@
+                                 schema=SCHEMAS[lens], domain_brief=domain_brief)
+     transcript = f"Assigned trace: {task_id}.txt\nFirst action:"
+     for _ in range(MAX_TURNS):
+-        raw = generate(transcript, system=system, json_only=True, model=model)
++        raw = generate(transcript, system=system, json_only=True, model=model, role="digester")
+         try:
+             act = json.loads(raw)
+         except json.JSONDecodeError:
+@@ -195,22 +185,17 @@
+                 result = _read_file(traces_dir, act["path"], act.get("offset"),
+                                     act.get("limit"))
+             elif a == "glob":
++                pattern = act.get("pattern", "*")
++                if not isinstance(pattern, str) or "/" in pattern or "\\" in pattern or ".." in pattern:
++                    raise ValueError("glob accepts a filename pattern only")
+                 result = "\n".join(sorted(
+-                    p.name for p in traces_dir.glob(act.get("pattern", "*"))))
++                    p.name for p in traces_dir.glob(pattern)
++                    if p.is_file() and not p.is_symlink()))
+             elif a == "grep":
+                 result = _grep(traces_dir, act.get("pattern", ""),
+                                act.get("path", ""), int(act.get("max_hits", 40)))
+             elif a == "bash":
+-                cmd = act.get("cmd", "")
+-                if not _bash_ok(cmd):
+-                    result = ("ERROR: command rejected (read-only shell; allowed: "
+-                              "grep/head/tail/awk/jq/sed/wc/cat/ls/find/cut/sort/"
+-                              "uniq/tr; no redirection)")
+-                else:
+-                    r = subprocess.run(cmd, shell=True, cwd=traces_dir,
+-                                       capture_output=True, text=True,
+-                                       timeout=BASH_TIMEOUT)
+-                    result = (r.stdout or "") + (r.stderr or "")
++                result = "ERROR: shell is disabled; use contained read_file, grep or glob"
+             else:
+                 result = f"ERROR: unknown action {a}"
+         except Exception as e:  # noqa: BLE001
+--- upstream/rrsi/evaluate.py
++++ vendor/rrsi/evaluate.py
+@@ -46,6 +46,7 @@
+ import json
+ from dataclasses import asdict, dataclass, field
+ from pathlib import Path
++from .storage import atomic_text
+ 
+ 
+ @dataclass
+@@ -94,7 +95,7 @@
+                    extra=d.get("extra") or {})
+ 
+     def save(self, path: Path | str) -> None:
+-        Path(path).write_text(json.dumps(self.to_json(), indent=1))
++        atomic_text(Path(path), json.dumps(self.to_json(), indent=1))
+ 
+     @classmethod
+     def load(cls, path: Path | str) -> "EvalResult":
+--- upstream/rrsi/gitops.py
++++ vendor/rrsi/gitops.py
+@@ -123,4 +123,5 @@
+     r = git(repo, "merge-base", "--is-ancestor", branch, commit)
+     if r.returncode != 0:
+         raise RuntimeError(f"{commit} is not a fast-forward of {branch}")
+-    git(repo, "update-ref", f"refs/heads/{branch}", commit, check=True)
++    old = git(repo, "rev-parse", branch, check=True).stdout.strip()
++    git(repo, "update-ref", f"refs/heads/{branch}", commit, old, check=True)
+--- upstream/rrsi/history.py
++++ vendor/rrsi/history.py
+@@ -44,6 +44,8 @@
+ 
+ import json
+ import math
++import os
++from .storage import atomic_text
+ import time
+ from pathlib import Path
+ 
+@@ -73,6 +75,8 @@
+         self.path.parent.mkdir(parents=True, exist_ok=True)
+         with open(self.path, "a") as f:
+             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
++            f.flush()
++            os.fsync(f.fileno())
+ 
+     def append_candidate(self, t: int, variant: str, edits: list[dict],
+                          outcome: str, delta_S: float | None,
+@@ -103,7 +107,7 @@
+         them); records satisfying `keep` survive."""
+         recs = [r for r in self.records()
+                 if not (r.get("t") == t and r.get("edit_id")) or keep(r)]
+-        self.path.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in recs))
++        atomic_text(self.path, "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in recs))
+ 
+     def has(self, t: int, variant: str) -> bool:
+         return any(r.get("t") == t and r.get("variant") == variant
+@@ -163,12 +167,26 @@
+         return out
+ 
+     # ------------------------------------------------------- for prompts --
+-    def render(self, n: int = 40) -> list[dict]:
++    def render(self, n: int | None = 40) -> list[dict]:
+         """Compact view of the most recent records for the proposer's context.
+         Measured outcomes dominate: gate failures without a measurement are
+         kept only for their most recent few, because a wall of aborts is a
+         feedback loop, not evidence."""
+         recs = self.records()
++        if n is None:
++            # Paper fidelity: every recorded edit and its complete diff is supplied.
++            # The model broker rejects over-capacity context instead of truncating it.
++            full = []
++            for rec in recs:
++                row = dict(rec)
++                if row.get("diff"):
++                    path = Path(row["diff"])
++                    if path.is_symlink() or not path.resolve().is_relative_to(self.path.parent.resolve()):
++                        raise ValueError("History diff escapes experiment evidence")
++                    row["diff_path"] = str(path.relative_to(self.path.parent))
++                    row["diff"] = path.read_text()
++                full.append(row)
++            return full
+         kept, unmeasured = [], 0
+         for r in reversed(recs):
+             if r.get("delta_S") is None:
+--- upstream/rrsi/llm.py
++++ vendor/rrsi/llm.py
+@@ -49,6 +49,16 @@
+ ]
+ MAX_TOKENS = 20_000
+ 
++# Agent Zero integration: explicit process-local transport, configured before work.
++# A controller serializes campaigns; all digest threads share this immutable binding.
++_PROVIDER = None
++
++
++def configure_provider(provider=None):
++    global _PROVIDER
++    _PROVIDER = provider
++
++
+ _clients: dict = {}
+ _clients_lock = threading.Lock()
+ _rr = itertools.count()
+@@ -91,13 +101,21 @@
+ 
+ def generate(prompt: str, system: str | None = None, max_retries: int = 6,
+              json_only: bool = False, model: str | None = None,
+-             max_tokens: int = MAX_TOKENS, cache_prefix: str | None = None) -> str:
++             max_tokens: int = MAX_TOKENS, cache_prefix: str | None = None,
++             role: str = "proposer") -> str:
++    if _PROVIDER is not None:
++        result = _PROVIDER(prompt=prompt, system=system, json_only=json_only,
++                           model=model, max_tokens=max_tokens, cache_prefix=cache_prefix,
++                           role=role)
++        return extract_json(result) if json_only else result
+     mdl = model or MODEL
+     sys_prompt = (system or "") + (_JSON_SUFFIX if json_only else "")
+     content = ([{"type": "text", "text": cache_prefix,
+                  "cache_control": {"type": "ephemeral"}},
+                 {"type": "text", "text": prompt}] if cache_prefix else prompt)
+     n = len(_PROJECTS)
++    if not n:
++        raise RuntimeError("No search provider configured; set the Agent Zero broker or RRSI_VERTEX_PROJECTS")
+     start = next(_rr)
+     last_err: Exception | None = None
+     for attempt in range(max_retries):
+--- upstream/rrsi/loop.py
++++ vendor/rrsi/loop.py
+@@ -54,6 +54,7 @@
+ from pathlib import Path
+ 
+ from . import gitops as G
++from .storage import atomic_text, HaltRun
+ from .analyst import analyze, load_digests
+ from .calibrate import calibrate as _calibrate, write as _write_cal
+ from .components import normalize
+@@ -97,7 +98,7 @@
+         return json.loads(self.frontier_path.read_text())
+ 
+     def save_frontier(self, fr: dict) -> None:
+-        self.frontier_path.write_text(json.dumps(fr, indent=1))
++        atomic_text(self.frontier_path, json.dumps(fr, indent=1))
+ 
+     def delta(self) -> float:
+         if self.cfg.delta is not None:
+@@ -261,8 +262,8 @@
+                              prior_modes=prior.get("failure_modes"),
+                              prior_habits=prior.get("success_habits"),
+                              model=cfg.analyst_model)
+-            report_path.write_text(json.dumps(report, ensure_ascii=False, indent=1))
+-        self.global_analysis.write_text(json.dumps(
++            atomic_text(report_path, json.dumps(report, ensure_ascii=False, indent=1))
++        atomic_text(self.global_analysis, json.dumps(
+             {"failure_modes": report.get("failure_modes"),
+              "success_habits": report.get("success_habits")}, ensure_ascii=False, indent=1))
+         log(d.name, f"top modes: {[m.get('mode') for m in report.get('failure_modes', [])[:5]]}")
+@@ -277,12 +278,12 @@
+         tried = self.history.tried()
+         explore = exploration(t, sigma, tried, cfg.m_draft)
+         prune = self.history.prune_set(t, cfg.n_prune)
+-        hist_rows = self.history.render()
++        hist_rows = self.history.render(None)
+         digests = load_digests(rdir)
+         skill_md, patterns_md = d.constitution(self.repo)
+         log(d.name, f"b_t={budget} sigma_t={sigma} untried={explore['untried']} "
+             f"prune={[p['component'] for p in prune]}")
+-        (rdir / "directives.json").write_text(json.dumps(
++        atomic_text(rdir / "directives.json", json.dumps(
+             {"t": t, "b_t": budget, "sigma_t": sigma, "tried": sorted(tried),
+              "explore": explore, "prune_set": prune, "delta": delta,
+              "S_star": fr["S_star"]}, indent=1))
+@@ -305,7 +306,7 @@
+         counts = self.history.incumbent_component_counts()
+         winner, decisions = select_round(cands, inc_ev, fr["S_star"], delta, cfg,
+                                          counts, guard_fn=d.guards)
+-        (rdir / "decisions.json").write_text(json.dumps(
++        atomic_text(rdir / "decisions.json", json.dumps(
+             [x.to_json() for x in decisions], indent=1))
+         for c, dec in zip(cands, decisions):
+             if self.history.has(t, c.variant):
+@@ -381,7 +382,7 @@
+                 counts[r["component"]] += 1
+         winner, decisions = select_round(cands, inc_ev, S_star, delta, cfg, counts,
+                                          guard_fn=d.guards)
+-        (rdir / "decisions.json").write_text(json.dumps(
++        atomic_text(rdir / "decisions.json", json.dumps(
+             [x.to_json() for x in decisions], indent=1))
+         self.history.replace_round(t)
+         for c, dec in zip(cands, decisions):
+@@ -479,7 +480,7 @@
+                          f"admissible one becomes H_{t + 1}.")
+ 
+         def finish(gate_failure: str, detail: str = "", edits=None, diff_path=None):
+-            prep_path.write_text(json.dumps(
++            atomic_text(prep_path, json.dumps(
+                 {"gate_failure": gate_failure, "detail": detail, "edits": edits or [],
+                  "diff_path": diff_path}, ensure_ascii=False, indent=1))
+             G.worktree_remove(self.repo, wt, branch)
+@@ -491,7 +492,7 @@
+                        explore, reserved, prune, traces=traces, per_task=inc_ev.per_task,
+                        findings=digests, scoreboard=self.scoreboard(),
+                        variant_brief=variant_brief, model=cfg.proposer_model)
+-        (vdir / "proposal.json").write_text(json.dumps(prop, ensure_ascii=False, indent=1))
++        atomic_text(vdir / "proposal.json", json.dumps(prop, ensure_ascii=False, indent=1))
+         if prop["status"] != "done" or prop["n_edits"] == 0:
+             return finish("no_proposal", str(prop.get("reason") or prop["status"]))
+ 
+@@ -499,7 +500,7 @@
+         verdict, diff = None, ""
+         for attempt in range(1 + cfg.repair_rounds):
+             diff = G.diff_with_new_files(wt, self.harness_rel)
+-            (vdir / "diff.patch").write_text(diff)
++            atomic_text(vdir / "diff.patch", diff)
+             verdict = review(d, diff, prop.get("mechanism") or "",
+                              prop.get("targets_mode") or "", edits=prop.get("edits"),
+                              model=cfg.critic_model)
+@@ -528,7 +529,7 @@
+                                            f"from {explore['untried']}, judged by the DIFF, and "
+                                            f"none is"],
+                                "risk_notes": verdict.get("risk_notes")}
+-            (vdir / f"critic_a{attempt}.json").write_text(json.dumps(verdict, indent=1))
++            atomic_text(vdir / f"critic_a{attempt}.json", json.dumps(verdict, indent=1))
+             if verdict.get("verdict") == "accept" or attempt >= cfg.repair_rounds:
+                 break
+             log(d.name, f"{vid}: critic objections (repair {attempt + 1}/"
+@@ -541,11 +542,10 @@
+                                          "risk_notes": verdict.get("risk_notes"),
+                                          "your_declared_edits": prop.get("edits")},
+                            model=cfg.proposer_model)
+-            (vdir / f"proposal_r{attempt + 1}.json").write_text(
+-                json.dumps(prop, ensure_ascii=False, indent=1))
++            atomic_text(vdir / f"proposal_r{attempt + 1}.json", json.dumps(prop, ensure_ascii=False, indent=1))
+             if prop["status"] != "done":
+                 break
+-        (vdir / "critic.json").write_text(json.dumps(verdict, indent=1))
++        atomic_text(vdir / "critic.json", json.dumps(verdict, indent=1))
+         edits = prop.get("edits") or []
+         if not verdict or verdict.get("verdict") != "accept":
+             return finish("critic_reject", str((verdict or {}).get("reasons"))[:600],
+@@ -553,7 +553,7 @@
+ 
+         # tag (l', h', d'): validate the declared component against the diff
+         diff = G.diff_with_new_files(wt, self.harness_rel)
+-        (vdir / "diff.patch").write_text(diff)
++        atomic_text(vdir / "diff.patch", diff)
+         for e in edits:
+             e["component"] = normalize(e.get("component"), diff, d.component_signals)
+         commit = G.commit_path(wt, self.harness_rel,
+@@ -562,11 +562,11 @@
+         # liveness smoke: does the candidate run at all (not a selection rule)
+         ok, detail = d.smoke(wt, self.runs, f"r{t}{vid}_smoke",
+                              d.smoke_ids(inc_ev.per_task))
+-        (vdir / "smoke.json").write_text(json.dumps({"ok": ok, **detail}, indent=1))
++        atomic_text(vdir / "smoke.json", json.dumps({"ok": ok, **detail}, indent=1))
+         if not ok:
+             return finish("smoke_fail", json.dumps(detail)[:600], edits,
+                           str(vdir / "diff.patch"))
+-        prep_path.write_text(json.dumps(
++        atomic_text(prep_path, json.dumps(
+             {"commit": commit, "branch": branch, "edits": edits,
+              "diff_path": str(vdir / "diff.patch"), "mechanism": prop.get("mechanism")},
+             ensure_ascii=False, indent=1))
+@@ -588,6 +588,8 @@
+         for attempt in range(2):
+             try:
+                 ev = evaluate(d, wt, self.runs, job, ids, cfg.k, log_prefix=job)
++            except HaltRun:
++                raise
+             except Exception as e:  # noqa: BLE001
+                 c.gate_failure, c.detail = "eval_invalid", f"evaluation crashed: {e!r}"[:600]
+                 log(d.name, f"{c.variant}: {c.detail}")
+--- upstream/rrsi/propose.py
++++ vendor/rrsi/propose.py
+@@ -145,19 +145,32 @@
+         self.exts = source_exts
+ 
+     def _safe(self, rel: str) -> Path:
+-        rel = str(rel).lstrip("/")
++        rel = str(rel)
++        if Path(rel).is_absolute() or "\\" in rel or ".." in Path(rel).parts:
++            raise ValueError("path escapes harness dir")
+         name = self.dir.name
+         if rel == name or rel.startswith(name + "/"):
+             rel = rel[len(name):].lstrip("/")
+         p = (self.dir / rel).resolve()
+         if not str(p).startswith(str(self.dir) + os.sep) and p != self.dir:
+             raise ValueError(f"path escapes harness dir: {rel}")
++        current = self.dir
++        for part in Path(rel).parts:
++            current = current / part
++            if current.is_symlink():
++                raise ValueError("harness symlinks are not permitted")
+         return p
++
++    def _files(self):
++        for path in sorted(self.dir.rglob("*")):
++            if path.is_symlink():
++                raise ValueError("harness symlinks are not permitted")
++            if path.is_file() and "__pycache__" not in path.parts:
++                yield path
+ 
+     def list_files(self) -> str:
+         return "\n".join(f"{p.relative_to(self.dir)} ({p.stat().st_size}B)"
+-                         for p in sorted(self.dir.rglob("*"))
+-                         if p.is_file() and "__pycache__" not in p.parts)
++                         for p in self._files())
+ 
+     def read(self, rel: str) -> str:
+         p = self._safe(rel)
+@@ -188,7 +201,7 @@
+ 
+     def dump(self) -> str:
+         parts = []
+-        for p in sorted(self.dir.rglob("*")):
++        for p in self._files():
+             if p.is_file() and p.suffix in self.exts and "__pycache__" not in p.parts:
+                 parts.append(f"===== FILE: {p.relative_to(self.dir)} =====\n{p.read_text()}")
+         return "\n\n".join(parts)
+@@ -309,7 +322,7 @@
+                   + "\n\n=== INTERACTION LOG ===\n" + transcript
+                   + "\nReply with exactly one JSON action object.")
+         raw = generate(prompt, system=system, json_only=True, model=model,
+-                       cache_prefix=stable)
++                       cache_prefix=stable, role="proposer")
+         try:
+             act = json.loads(raw)
+         except json.JSONDecodeError:
+--- upstream/rrsi/storage.py
++++ vendor/rrsi/storage.py
+@@ -0,0 +1,36 @@
++"""Audited integration addition: durable text/JSON writes, no scientific logic."""
++from __future__ import annotations
++
++import json
++import os
++from pathlib import Path
++import tempfile
++
++
++def atomic_text(path: Path | str, text: str) -> None:
++    path = Path(path)
++    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
++    fd, name = tempfile.mkstemp(prefix=".rrsi-", dir=path.parent)
++    try:
++        with os.fdopen(fd, "w", encoding="utf-8") as handle:
++            os.fchmod(handle.fileno(), 0o600)
++            handle.write(text)
++            handle.flush()
++            os.fsync(handle.fileno())
++        os.replace(name, path)
++        parent = os.open(path.parent, os.O_RDONLY)
++        try:
++            os.fsync(parent)
++        finally:
++            os.close(parent)
++    finally:
++        if os.path.exists(name):
++            os.unlink(name)
++
++
++def atomic_json(path: Path | str, value) -> None:
++    atomic_text(path, json.dumps(value, ensure_ascii=False, indent=1, allow_nan=False) + "\n")
++
++
++class HaltRun(RuntimeError):
++    """Operational interruption must not be scored as a failed candidate."""

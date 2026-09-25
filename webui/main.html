@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>RRSI</title>
+    <link rel="stylesheet" href="/plugins/rrsi/webui/dashboard.css">
+    <script type="module" src="/plugins/rrsi/webui/dashboard-store.js"></script>
+</head>
+<body>
+<div class="rrsi-dashboard" x-data>
+    <template x-if="$store.rrsiDashboard">
+      <div x-create="$store.rrsiDashboard.mount()" x-destroy="$store.rrsiDashboard.unmount()">
+      <template x-if="$store.rrsiDashboard.state">
+        <div>
+            <div class="rrsi-heading"><div class="rrsi-brand"><img src="/plugins/rrsi/webui/assets/rrsi-icon.png" width="64" height="64" alt="" class="rrsi-icon"><div><h2>Regularized self-improvement</h2><p>Measured harness evolution for new conversations.</p></div></div><button class="button" @click="$store.rrsiDashboard.refresh()">Refresh</button></div>
+            <div class="rrsi-metrics">
+                <div><span>Controller</span><strong x-text="$store.rrsiDashboard.state.enabled ? ($store.rrsiDashboard.state.worker_running ? 'Running' : 'Ready') : 'Disabled'"></strong></div>
+                <div><span>Foreground</span><strong x-text="$store.rrsiDashboard.state.idle ? 'Idle' : 'Busy · evaluation yields'"></strong></div>
+                <div><span>Daily spending cap</span><strong x-text="$store.rrsiDashboard.state.budget.unlimited ? 'Unlimited' : $store.rrsiDashboard.money($store.rrsiDashboard.state.budget.daily_limit_usd)"></strong></div>
+                <div><span>Priced spending</span><strong x-text="$store.rrsiDashboard.state.budget.unpriced_calls ? $store.rrsiDashboard.money($store.rrsiDashboard.state.budget.reported_cost_usd) + ' + unpriced calls' : $store.rrsiDashboard.money($store.rrsiDashboard.state.budget.reported_cost_usd)"></strong></div>
+            </div>
+            <p class="rrsi-note">Zero means unlimited. Positive limits reserve spending before model calls; missing prices block paid work. Existing conversations retain their version.</p>
+            <p class="rrsi-note" x-show="!$store.rrsiDashboard.state.pricing_roles.length">Pricing is unavailable. Unlimited campaigns can run, but their monetary cost remains unknown.</p>
+            <p class="rrsi-note" x-show="$store.rrsiDashboard.state.budget.unpriced_calls" x-text="$store.rrsiDashboard.state.budget.unpriced_calls + ' completed calls have unknown cost; priced spending is not the total cost.'"></p>
+            <div class="rrsi-controls">
+                <button class="button" :disabled="$store.rrsiDashboard.busy" @click="$store.rrsiDashboard.action('setup')">Check setup</button>
+                <button class="button" :disabled="$store.rrsiDashboard.busy || !$store.rrsiDashboard.state.enabled || $store.rrsiDashboard.state.worker_running" @click="$store.rrsiDashboard.action('start')">Start campaign</button>
+                <button class="button" :disabled="$store.rrsiDashboard.busy || !$store.rrsiDashboard.selected" @click="$store.rrsiDashboard.action('pause')">Pause</button>
+                <button class="button" :disabled="$store.rrsiDashboard.busy || !$store.rrsiDashboard.selected" @click="$store.rrsiDashboard.action('resume')">Resume</button>
+                <button class="button" :disabled="$store.rrsiDashboard.busy || !$store.rrsiDashboard.selected" @click="$store.rrsiDashboard.action('stop')">Stop</button>
+                <button class="button" :disabled="$store.rrsiDashboard.busy" @click="$store.rrsiDashboard.action('rollback')">Restore previous version</button>
+            </div>
+            <label>Campaign <select x-model="$store.rrsiDashboard.selected" @change="$store.rrsiDashboard.refresh()"><option value="">Latest campaign</option><template x-for="campaign in $store.rrsiDashboard.state.campaigns" :key="campaign.id"><option :value="campaign.id" x-text="campaign.id + ' · ' + campaign.status"></option></template></select></label>
+            <p x-text="'Active harness: ' + $store.rrsiDashboard.state.active_version"></p>
+            <template x-if="$store.rrsiDashboard.state.campaign"><p x-text="'Campaign state: ' + $store.rrsiDashboard.state.campaign.status + ' · Completed rounds: ' + ($store.rrsiDashboard.state.campaign.next_round || 0)"></p></template>
+            <details open><summary>Evidence, calibration and decisions</summary>
+                <div class="rrsi-controls"><select aria-label="Evidence kind" x-model="$store.rrsiDashboard.evidenceKind"><template x-for="kind in ['summary','calibration','frontier','decisions','directives','analysis','diff','proposal','critic','last_operation','config','tasks']"><option :value="kind" x-text="kind"></option></template></select><label>Round <input type="number" min="0" max="100000" x-model.number="$store.rrsiDashboard.round"></label><label>Candidate <select x-model="$store.rrsiDashboard.variant"><template x-for="letter in ['A','B','C','D','E','F','G','H']"><option x-text="letter"></option></template></select></label><button class="button" @click="$store.rrsiDashboard.inspect()">Inspect</button></div>
+                <pre class="rrsi-evidence" x-text="$store.rrsiDashboard.evidence || 'Select evidence to inspect.'"></pre>
+            </details>
+            <details><summary>Task eligibility</summary><p>Only sanitized tasks with reproducible fixtures and independent graders enter selection. Held-out and transfer families remain separate.</p><p x-text="JSON.stringify($store.rrsiDashboard.state.capture_counts)"></p><div class="rrsi-table"><table><thead><tr><th>Task</th><th>Family</th><th>Split</th><th>Grader</th><th>Source</th></tr></thead><tbody><template x-for="task in $store.rrsiDashboard.tasks" :key="task.id"><tr><td x-text="task.id"></td><td x-text="task.family"></td><td x-text="task.split"></td><td x-text="task.evaluator"></td><td x-text="task.source"></td></tr></template></tbody></table></div></details>
+            <details><summary>Versioned generated assets</summary><p>Tools, skills and subordinate roles are bound to each conversation's harness version.</p><template x-for="version in $store.rrsiDashboard.versions" :key="version.version"><div><code x-text="version.version"></code><pre class="rrsi-evidence" x-text="JSON.stringify(version.components, null, 2)"></pre></div></template></details>
+            <details><summary>Spending and schedule</summary><pre class="rrsi-evidence" x-text="JSON.stringify({budget:$store.rrsiDashboard.state.budget, pricing_roles:$store.rrsiDashboard.state.pricing_roles, scheduler:$store.rrsiDashboard.state.scheduler}, null, 2)"></pre></details>
+        </div>
+      </template>
+      </div>
+    </template>
+</div>
+</body>
+</html>

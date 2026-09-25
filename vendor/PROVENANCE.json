@@ -1,0 +1,135 @@
+{
+  "url": "https://github.com/google-research/rrsi",
+  "commit": "be50316e1db05914068a973f322770ef08ed7ba1",
+  "original_files": {
+    "__init__.py": "3912d6ead36a09582fab35a1adce600e44a7be12caac2389f666338a688017d9",
+    "analyst.py": "2178f77361ab6e33be6ea9b594828ff99cb9642cf94638f9329b39a77dbaedb5",
+    "calibrate.py": "1fc5b633f61237bdfaacff1853c8661b951c09914cea2bfa53fa735036d9edec",
+    "components.py": "4b76dcfadb8bbf50e4244c25cb9354c6891db2a2e08ae782f1ef63babb7e066a",
+    "config.py": "4bc30a3a2e6ed42a9e2efea2d7746ce2890119c76ff8fbbd4bb64cfd2f82bd8c",
+    "critic.py": "96524e4d4af1723f479b3a5ca699a685612cf9bb95e7cbd4291d17c952488afe",
+    "digester.py": "8d9e892dece29f21b57cc2a17632a79e8412c4e3067ed4330745c027e4898685",
+    "domain.py": "92748d41fc46f01724a49f8698fb8b49fa129a7b0b39fe29e600322f10c4f1fb",
+    "driver.py": "05c651ba1454f08fae073f97d4f143d15304d3ac24b79de8b41b8933e909de78",
+    "evaluate.py": "e361eb0de5c56a70493757bf1036290b230ab7cacfe88f3ac86b5a36cbfead2f",
+    "gitops.py": "38193c374a5fddff5c41184c200b2ee227fa1c75abdd8f5f1057f76bc38ed520",
+    "history.py": "afa808909ff873fc3e07e4d8239da57fd0bddd4be7014b8e0c63c35f04246b11",
+    "llm.py": "44099451d4fc21c123f2d0b89604d4948ff8d2a12f72b8509c7da23779eae910",
+    "loop.py": "6062392571acb42391f9246ff64e9aea20772b243567317a011b91ea7c9e8071",
+    "propose.py": "f90aab99ef698121001477461b4d8f8fee17b5104fcbc33b0e6ec137468a7946",
+    "schedule.py": "fc2b5e5367b34a776c5088ed822ffcfd80f20bfe08e4864d027bea1599a4762f",
+    "selection.py": "5142043947117e3a28167fdbdddf824293e7a79bdb5f7e90a4ebc908bed7d663"
+  },
+  "patches": [
+    {
+      "file": "analyst.py",
+      "reason": "Route analyst role through injected frozen provider; normalize digester lens to its closed set before writing evidence filenames.",
+      "kind": "audited integration patch",
+      "original_sha256": "2178f77361ab6e33be6ea9b594828ff99cb9642cf94638f9329b39a77dbaedb5",
+      "sha256": "e5f65241fc17f0c7dc822ee725323897b9165913e752fc85e21070d22befcd63"
+    },
+    {
+      "file": "calibrate.py",
+      "reason": "Use durable atomic writes for calibration artifacts; preserve bootstrap and repeated-base estimators unchanged.",
+      "kind": "audited integration patch",
+      "original_sha256": "1fc5b633f61237bdfaacff1853c8661b951c09914cea2bfa53fa735036d9edec",
+      "sha256": "dfb9d9c519706eb9b702f1b00f267e370c5556b433a3e6b6fb0ebafb8c1cc943"
+    },
+    {
+      "file": "critic.py",
+      "reason": "Route critic role through frozen provider and include complete edits/diff/state; capacity failure is explicit rather than truncation.",
+      "kind": "audited integration patch",
+      "original_sha256": "96524e4d4af1723f479b3a5ca699a685612cf9bb95e7cbd4291d17c952488afe",
+      "sha256": "53734d5082b3eff0640cf0fcb13bceb31a7a60d2dfdb1363637162a60e0edef3"
+    },
+    {
+      "file": "digester.py",
+      "reason": "Route digester role through frozen provider; reject path escapes/symlinks and restrict glob filenames; disable controller host shell.",
+      "kind": "audited integration patch",
+      "original_sha256": "8d9e892dece29f21b57cc2a17632a79e8412c4e3067ed4330745c027e4898685",
+      "sha256": "63bde754a2bc33772396dc5fee7dece3ff00cc8ee2719944d27de533964ba510"
+    },
+    {
+      "file": "evaluate.py",
+      "reason": "Use durable atomic writes for evaluation artifacts; preserve all estimators and cost formula unchanged.",
+      "kind": "audited integration patch",
+      "original_sha256": "e361eb0de5c56a70493757bf1036290b230ab7cacfe88f3ac86b5a36cbfead2f",
+      "sha256": "3a0012ff2fbbdc02ea850f62ade280d267c2a5c1cbcf48ea002a84ab3cf31cc6"
+    },
+    {
+      "file": "gitops.py",
+      "reason": "Compare-and-swap fast-forward refs against the observed old commit.",
+      "kind": "audited integration patch",
+      "original_sha256": "38193c374a5fddff5c41184c200b2ee227fa1c75abdd8f5f1057f76bc38ed520",
+      "sha256": "c1a6bc258c9210b20953e65bd5ec681ae45987f4183e8c451617bc143cfe101d"
+    },
+    {
+      "file": "history.py",
+      "reason": "Durable history writes; add opt-in full record and complete diff rendering used by Agent Zero, keeping native summary API defaults.",
+      "kind": "audited integration patch",
+      "original_sha256": "afa808909ff873fc3e07e4d8239da57fd0bddd4be7014b8e0c63c35f04246b11",
+      "sha256": "2b4fcba113a76772cb4ea55d7426e20a2d17829bc61b486b49ff4dea57a48652"
+    },
+    {
+      "file": "llm.py",
+      "reason": "Inject broker-backed frozen model roles through the existing generate interface; retain original Vertex fallback for upstream compatibility.",
+      "kind": "audited integration patch",
+      "original_sha256": "44099451d4fc21c123f2d0b89604d4948ff8d2a12f72b8509c7da23779eae910",
+      "sha256": "4761a592247d8adc2a46e45d82e0055a87f619121cc4fc4eca9fdbe3a3253397"
+    },
+    {
+      "file": "loop.py",
+      "reason": "Use durable artifact writes, full history at proposal time, and propagate explicit controller interruption instead of recording candidate invalidity.",
+      "kind": "audited integration patch",
+      "original_sha256": "6062392571acb42391f9246ff64e9aea20772b243567317a011b91ea7c9e8071",
+      "sha256": "4d767f8b0df010572fa411bccd5545d3f6e989e4ad36a4f9ba4b07e253e92834"
+    },
+    {
+      "file": "propose.py",
+      "reason": "Inject proposer role; reject symlink/traversal workspace access and include all checked source files in listings and initial context.",
+      "kind": "audited integration patch",
+      "original_sha256": "f90aab99ef698121001477461b4d8f8fee17b5104fcbc33b0e6ec137468a7946",
+      "sha256": "11a84200a25c34732cc9a93de3cafaa7757889ef57725fc7fdb1e35b27024cfe"
+    },
+    {
+      "file": "storage.py",
+      "reason": "New integration-only atomic write primitives and HaltRun operational exception; no scientific calculations.",
+      "kind": "integration addition",
+      "original_sha256": null,
+      "sha256": "453d18af8868bc0584e39256bcd23f61e5c73bffc24fccd516655bad78e10d71"
+    }
+  ],
+  "integration_patch_sha256": "065c62680f57f0c9f3f874bf742b9a5618cbe9fceb9b7a714325201e72d0120a",
+  "unchanged_scientific_modules": [
+    "components.py",
+    "config.py",
+    "schedule.py",
+    "selection.py"
+  ],
+  "notes": [
+    "Upstream notices and Apache-2.0 LICENSE retained.",
+    "No scientific formula is reimplemented by the adapter. Full history is an explicit paper-fidelity patch correcting the upstream prompt default of at most40 records/four unmeasured outcomes.",
+    "Original native Vertex provider remains available in vendored source but is never the production Agent Zero path; every production role uses the metered frozen broker.",
+    "The Agent Zero Domain replaces benchmark-specific execution/scoring, as required by upstream Domain extension contract."
+  ],
+  "current_files": {
+    "__init__.py": "3912d6ead36a09582fab35a1adce600e44a7be12caac2389f666338a688017d9",
+    "analyst.py": "e5f65241fc17f0c7dc822ee725323897b9165913e752fc85e21070d22befcd63",
+    "calibrate.py": "dfb9d9c519706eb9b702f1b00f267e370c5556b433a3e6b6fb0ebafb8c1cc943",
+    "components.py": "4b76dcfadb8bbf50e4244c25cb9354c6891db2a2e08ae782f1ef63babb7e066a",
+    "config.py": "4bc30a3a2e6ed42a9e2efea2d7746ce2890119c76ff8fbbd4bb64cfd2f82bd8c",
+    "critic.py": "53734d5082b3eff0640cf0fcb13bceb31a7a60d2dfdb1363637162a60e0edef3",
+    "digester.py": "63bde754a2bc33772396dc5fee7dece3ff00cc8ee2719944d27de533964ba510",
+    "domain.py": "92748d41fc46f01724a49f8698fb8b49fa129a7b0b39fe29e600322f10c4f1fb",
+    "driver.py": "05c651ba1454f08fae073f97d4f143d15304d3ac24b79de8b41b8933e909de78",
+    "evaluate.py": "3a0012ff2fbbdc02ea850f62ade280d267c2a5c1cbcf48ea002a84ab3cf31cc6",
+    "gitops.py": "c1a6bc258c9210b20953e65bd5ec681ae45987f4183e8c451617bc143cfe101d",
+    "history.py": "2b4fcba113a76772cb4ea55d7426e20a2d17829bc61b486b49ff4dea57a48652",
+    "llm.py": "4761a592247d8adc2a46e45d82e0055a87f619121cc4fc4eca9fdbe3a3253397",
+    "loop.py": "4d767f8b0df010572fa411bccd5545d3f6e989e4ad36a4f9ba4b07e253e92834",
+    "propose.py": "11a84200a25c34732cc9a93de3cafaa7757889ef57725fc7fdb1e35b27024cfe",
+    "schedule.py": "fc2b5e5367b34a776c5088ed822ffcfd80f20bfe08e4864d027bea1599a4762f",
+    "selection.py": "5142043947117e3a28167fdbdddf824293e7a79bdb5f7e90a4ebc908bed7d663",
+    "storage.py": "453d18af8868bc0584e39256bcd23f61e5c73bffc24fccd516655bad78e10d71"
+  }
+}

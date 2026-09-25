@@ -1,0 +1,21 @@
+.rrsi-dashboard { max-width: 1100px; padding: 1rem; }
+.rrsi-heading, .rrsi-controls { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+.rrsi-heading { justify-content: space-between; }
+.rrsi-brand { display: flex; align-items: center; gap: 1rem; min-width: 0; }
+.rrsi-icon { width: 64px; height: 64px; flex: 0 0 64px; image-rendering: pixelated; border-radius: .5rem; }
+.rrsi-brand p { margin-bottom: 0; }
+.rrsi-heading h2 { margin: 0; }
+.rrsi-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .75rem; margin: 1rem 0; }
+.rrsi-metrics > div { border: 1px solid var(--color-border, #8886); border-radius: .6rem; padding: 1rem; }
+.rrsi-metrics span, .rrsi-metrics strong { display: block; }
+.rrsi-metrics span, .rrsi-note { opacity: .75; }
+.rrsi-metrics strong { margin-top: .4rem; }
+.rrsi-controls { margin: 1rem 0; }
+.rrsi-dashboard label { display: inline-flex; align-items: center; gap: .4rem; }
+.rrsi-dashboard input[type=number] { max-width: 6rem; }
+.rrsi-dashboard details { border-top: 1px solid var(--color-border, #8886); padding: 1rem 0; }
+.rrsi-dashboard summary { cursor: pointer; font-weight: 600; }
+.rrsi-evidence { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 28rem; overflow: auto; padding: 1rem; background: var(--color-background, #8881); border-radius: .4rem; }
+.rrsi-table { overflow-x: auto; }
+.rrsi-table table { border-collapse: collapse; width: 100%; }
+.rrsi-table th, .rrsi-table td { text-align: left; padding: .5rem; border-bottom: 1px solid #8883; }

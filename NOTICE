@@ -1,0 +1,16 @@
+RRSI for Agent Zero
+
+Includes code from google-research/rrsi at commit
+be50316e1db05914068a973f322770ef08ed7ba1.
+
+Copyright 2026 The rrsi Authors.
+Copyright 2026 Google LLC.
+Licensed under the Apache License, Version 2.0.
+
+Original copyright and license notices are retained in vendored files.
+Integration modifications and original file hashes are listed in
+vendor/PROVENANCE.json. The surrounding Agent Zero integration is also
+distributed under Apache 2.0. Agent Zero itself is a separate dependency.
+
+The supplied RRSI paper is documented in a separate paper-skill artifact;
+the paper is not relicensed by the code license.
