@@ -11,7 +11,7 @@
       <div x-create="$store.rrsiDashboard.mount()" x-destroy="$store.rrsiDashboard.unmount()">
       <template x-if="$store.rrsiDashboard.state">
         <div>
-            <div class="rrsi-heading"><div class="rrsi-brand"><img src="/plugins/rrsi/webui/icon.png" width="64" height="64" alt="" class="rrsi-icon"><div><h2>Regularized self-improvement</h2><p>Measured harness evolution for new conversations.</p></div></div><button class="button" @click="$store.rrsiDashboard.refresh()">Refresh</button></div>
+            <div class="rrsi-heading"><div class="rrsi-brand"><img src="/plugins/rrsi/webui/thumbnail.png" width="64" height="64" alt="" class="rrsi-icon"><div><h2>Regularized self-improvement</h2><p>Measured harness evolution for new conversations.</p></div></div><button class="button" @click="$store.rrsiDashboard.refresh()">Refresh</button></div>
             <div class="rrsi-metrics">
                 <div><span>Controller</span><strong x-text="$store.rrsiDashboard.state.enabled ? ($store.rrsiDashboard.state.worker_running ? 'Running' : 'Ready') : 'Disabled'"></strong></div>
                 <div><span>Foreground</span><strong x-text="$store.rrsiDashboard.state.idle ? 'Idle' : 'Busy · evaluation yields'"></strong></div>
