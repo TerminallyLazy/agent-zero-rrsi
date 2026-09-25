@@ -8,7 +8,9 @@ This is a community integration, not a Google or Agent Zero endorsed implementat
 
 ## Installation and setup
 
-Install the community ZIP through Agent Zero's plugin installer. Open RRSI, select an available immutable Agent Zero Docker image, run setup checks, then enable automatic operation. The Docker daemon must be available to the trusted framework controller. Evaluation containers never receive the daemon socket.
+Install the community ZIP through Agent Zero's plugin installer. Open RRSI Settings and choose an **Evaluation image** from the local Docker image picker. **Use recommended image** selects a checked image without requiring a Docker command or image ID; click **Save**, run setup checks, then enable automatic operation. The Docker daemon must be available to the trusted framework controller. Evaluation containers never receive the daemon socket.
+
+The picker lists image names, sizes and platforms. It prefers the image running the current Agent Zero instance, then an official Agent Zero image, and recommends one only after a bounded Python/dependency check in a disposable container. This is a runtime check; campaign setup still verifies the complete environment. Refresh and opening Settings preserve your saved selection. Choosing an image stores its immutable local ID when you save. No images are downloaded. Manual references remain available in a collapsed advanced field; unavailable Docker access has explicit guidance.
 
 The plugin uses the framework's existing model libraries and standard Python libraries. It does not install packages at startup or from its lifecycle hooks. Its scientific engine uses the vendored package with an explicit Agent Zero provider bridge; the upstream Vertex client is not used. The standalone MCP companion has its own explicit, isolated installation instructions.
 

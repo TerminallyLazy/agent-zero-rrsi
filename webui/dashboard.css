@@ -40,6 +40,19 @@
 .rrsi-field em { font-style: normal; color: var(--rrsi-muted); font-size: .75rem; }
 .rrsi-field small { font-size: .75rem; line-height: 1.4; }
 .rrsi-setup-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(170px, 1fr); gap: 1rem; }
+.rrsi-image-field > label { font-size: .78rem; font-weight: 500; }
+.rrsi-image-picker { display: flex; align-items: center; gap: .5rem; min-width: 0; }
+.rrsi-image-picker select { flex: 1; text-overflow: ellipsis; }
+.rrsi-image-summary { padding: .75rem; border: 1px solid var(--rrsi-line); border-radius: .4rem; background: var(--color-panel); min-width: 0; }
+.rrsi-image-title { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; }
+.rrsi-image-title strong { font-size: .8rem; font-weight: 500; overflow-wrap: anywhere; min-width: 0; flex: 1; }
+.rrsi-image-title x-icon { color: var(--rrsi-muted); }
+.rrsi-image-meta { display: flex; flex-wrap: wrap; gap: .25rem .65rem; margin-top: .45rem; font-size: .75rem; color: var(--rrsi-muted); }
+.rrsi-image-meta code { font-size: inherit; }
+.rrsi-image-recommend { align-self: flex-start; }
+.rrsi-image-advanced { margin-top: .3rem; font-size: .75rem; }
+.rrsi-image-advanced > summary { cursor: pointer; color: var(--rrsi-muted); padding: .3rem 0; }
+.rrsi-image-advanced > .rrsi-field { margin-top: .5rem; }
 .rrsi-number-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .8rem; }
 .rrsi-ui .rrsi-toggle { position: relative; display: inline-block; width: 42px; height: 24px; min-width: 42px; flex: 0 0 42px; margin: 0; }
 .rrsi-ui .rrsi-toggle input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; z-index: 1; cursor: pointer; }
