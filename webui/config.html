@@ -1,20 +1,40 @@
 <html>
 <head>
     <title>RRSI settings</title>
-    <link rel="stylesheet" href="/plugins/rrsi/webui/dashboard.css">
-    <script type="module" src="/plugins/rrsi/webui/settings-store.js"></script>
+    <link rel="stylesheet" href="/plugins/rrsi/webui/dashboard.css?v=0.1.4">
+    <script type="module" src="/plugins/rrsi/webui/settings-store.js?v=0.1.4"></script>
 </head>
 <body>
 <div x-data>
 <template x-if="config && $store.rrsiSettingsPrototype">
-<div class="rrsi-ui rrsi-settings" x-data="$instantiate($store.rrsiSettingsPrototype)" x-init="loadModelPrices()" x-destroy="alive = false">
+<div class="rrsi-ui rrsi-settings" x-data="$instantiate($store.rrsiSettingsPrototype)" x-init="loadModelPrices(); loadImages()" x-destroy="alive = false">
     <div class="rrsi-hero">
         <div class="rrsi-brand"><img src="/plugins/rrsi/webui/thumbnail.png" width="56" height="56" alt="" class="rrsi-icon"><div><div class="rrsi-eyebrow">RRSI · SETTINGS</div><h2>Self-improvement settings</h2><p>Control how Agent Zero learns and improves.</p></div></div>
     </div>
     <section class="rrsi-panel">
         <div class="rrsi-panel-heading"><div class="rrsi-section-name"><x-icon name="power_settings_new"></x-icon><div><h3>Enable self-improvement</h3><p>Complete environment setup before enabling campaigns.</p></div></div><label class="toggle rrsi-toggle"><input type="checkbox" role="switch" aria-label="Enable self-improvement" x-model="config.enabled"><span class="toggler"></span></label></div>
         <div class="rrsi-panel-body rrsi-setup-grid">
-            <label class="rrsi-field"><span>Evaluation image</span><input type="text" x-model="config.framework_image" placeholder="Agent Zero image tag or sha256:…" autocomplete="off"><small>Use an existing Docker image. Each campaign freezes its identity.</small></label>
+            <div class="rrsi-field rrsi-image-field" x-id="['rrsi-image', 'rrsi-image-help']">
+                <label :for="$id('rrsi-image')">Evaluation image</label>
+                <div class="rrsi-image-picker">
+                    <select :id="$id('rrsi-image')" :aria-describedby="$id('rrsi-image-help')" :disabled="imagesLoading" x-effect="const selected = imageSelection(config); $nextTick(() => $el.value = selected)" @change="config.framework_image = $event.target.value">
+                        <option value="">Choose a local Docker image</option>
+                        <template x-if="config.framework_image && !selectedImage(config)"><option :value="config.framework_image" x-text="'Current selection · ' + config.framework_image"></option></template>
+                        <template x-for="group in imageGroups" :key="group.key"><optgroup :label="group.label" :disabled="groupedImages(group.key).length === 0">
+                            <template x-for="image in groupedImages(group.key)" :key="image.id"><option :value="image.id" :disabled="!image.selectable" x-text="imageLabel(image)"></option></template>
+                        </optgroup></template>
+                    </select>
+                    <button type="button" class="button rrsi-icon-button" aria-label="Refresh Docker images" title="Refresh Docker images" :disabled="imagesLoading" @click="loadImages()"><x-icon name="refresh"></x-icon></button>
+                </div>
+                <template x-if="selectedImage(config)"><div class="rrsi-image-summary">
+                    <div class="rrsi-image-title"><x-icon name="layers"></x-icon><strong x-text="selectedImage(config).name"></strong><span class="rrsi-badge" x-show="selectedImage(config).recommended">Recommended</span></div>
+                    <div class="rrsi-image-meta"><span x-text="selectedImage(config).platform"></span><span x-text="imageSize(selectedImage(config).size_bytes)"></span><span x-show="selectedImage(config).current_instance">Current Agent Zero image</span><code :title="selectedImage(config).id" x-text="selectedImage(config).id.slice(7, 19)"></code></div>
+                </div></template>
+                <small :id="$id('rrsi-image-help')" role="status" x-text="imageStatus()"></small>
+                <button type="button" class="button rrsi-button rrsi-image-recommend" x-show="!imagesLoading && imageAvailability === 'ready' && recommendedImage() && !selectedImage(config)?.recommended" @click="config.framework_image = recommendedImage().id"><x-icon name="check_circle"></x-icon>Use recommended image</button>
+                <small x-show="imagesTruncated">Showing the first 256 images. Use manual entry for an image outside this list.</small>
+                <details class="rrsi-image-advanced"><summary>Manual image reference</summary><label class="rrsi-field"><span>Image tag or ID</span><input type="text" x-model="config.framework_image" placeholder="Agent Zero image tag or sha256:…" autocomplete="off"><small>For custom setups. Images must already exist on the controller’s Docker daemon. Changes apply when you Save.</small></label></details>
+            </div>
             <label class="rrsi-field"><span>Daily spending cap <em>USD</em></span><input type="number" min="0" step="0.01" x-model.number="config.daily_budget_usd"><small x-text="Number(config.daily_budget_usd) === 0 ? 'Unlimited spending · set an amount to add a cap.' : 'A positive cap requires prices for every model role.'"></small></label>
         </div>
     </section>
