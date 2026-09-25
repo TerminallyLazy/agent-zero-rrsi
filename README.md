@@ -1,4 +1,4 @@
-<p align="center"><img src="https://raw.githubusercontent.com/TerminallyLazy/agent-zero-rrsi/main/webui/assets/rrsi-logo.png" width="192" height="192" alt="RRSI: a pixel agent inside recursive loops, ascending toward an amber pixel"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/TerminallyLazy/agent-zero-rrsi/main/logo.png" width="192" height="192" alt="RRSI: a pixel agent inside recursive loops, ascending toward an amber pixel"></p>
 
 # RRSI for Agent Zero
 

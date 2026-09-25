@@ -1,7 +1,7 @@
 name: rrsi
 title: RRSI
 description: Regularized recursive improvement of Agent Zero harnesses with reproducible evaluation and versioned activation.
-version: 0.1.0
+version: 0.1.1
 settings_sections:
   - agent
   - developer
