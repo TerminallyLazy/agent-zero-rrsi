@@ -34,6 +34,8 @@ The automatic replay compiler currently recognizes bounded integer-array sorting
 
 The curated suite covers coding, files, structured data, documents, context management, tool recovery, local skill procedures and delegation. Hidden Python cases execute in separate disposable grader containers. Expected answers stay in the controller, outside the candidate's filesystem. Held-out and transfer results are evaluated after evolution and do not enter proposer feedback or selection.
 
+Version 0.1.3 fixes grader startup on Docker's compressed `local` logging driver. Graders inherit the shared limit of two 1 MB log files. Campaigns that failed on earlier grader code retain their evidence; start a new campaign after updating because grader source is frozen within each experiment.
+
 ## Versioned activation
 
 The editable surface is a manifest plus plugin-owned payloads: prompts, control flow, configuration, output handling, context management, tools, skills, memory and subordinate roles. Stable native shims load version-qualified modules. Published payloads live outside watched `extensions` directories.

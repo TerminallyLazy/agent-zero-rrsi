@@ -70,7 +70,9 @@ def grade_task(task: TaskSpec, response: str, output_root: Path | None = None,
                 sandbox.populate(volume, inp)
                 container = sandbox._container("--read-only", "--user","65534:65534", "--network","none",
                     "--cap-drop","ALL","--security-opt","no-new-privileges","--pids-limit","32",
-                    "--memory","256m","--cpus","1", "--log-opt","max-size=1m","--log-opt","max-file=1",
+                    # Inherit the bounded local logger from _container. Its
+                    # default compression requires at least two rotated files.
+                    "--memory","256m","--cpus","1",
                     "--tmpfs","/tmp:rw,nosuid,nodev,size=16m,mode=1777",
                     "--mount",f"type=volume,source={volume},target=/grader-input,readonly",
                     "--entrypoint","/usr/bin/env", image, "-i", "PATH=/usr/bin:/bin", "HOME=/tmp",
