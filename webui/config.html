@@ -1,12 +1,59 @@
-<html><head><title>RRSI settings</title></head><body><div x-data><template x-if="config"><div>
-<div class="section-title">Regularized self-improvement</div>
-<div class="section-description">Starting defaults: 20 rounds, 2 candidates, 2 trials per task and 3 unchanged baseline evaluations. These are not experimentally optimized for Agent Zero.</div>
-<div class="field"><div class="field-label"><div class="field-title">Enable RRSI</div><div class="field-description">Complete dependency setup and image selection first. The controller checks compatibility before paid work.</div></div><div class="field-control"><input type="checkbox" x-model="config.enabled"></div></div>
-<div class="field"><div class="field-label"><div class="field-title">Daily spending cap (USD)</div><div class="field-description">0 means unlimited. Positive caps require prices for every used model role.</div></div><div class="field-control"><input type="number" min="0" step="0.01" x-model.number="config.daily_budget_usd"></div></div>
-<div class="field"><div class="field-label"><div class="field-title">Evaluation Docker image</div><div class="field-description">A local Agent Zero framework image. Each campaign freezes its immutable image identity.</div></div><div class="field-control"><input type="text" x-model="config.framework_image"></div></div>
-<template x-for="option in [{key:'automatic_capture',name:'Capture eligible future interactions'},{key:'automatic_campaigns',name:'Check hourly for idle campaigns'},{key:'automatic_activation',name:'Activate validated final incumbent for new conversations'}]" :key="option.key"><div class="field"><div class="field-label"><div class="field-title" x-text="option.name"></div></div><div class="field-control"><input type="checkbox" x-model="config[option.key]"></div></div></template>
-<template x-for="option in [{key:'rounds',name:'Rounds',min:1},{key:'candidates',name:'Candidates per round',min:1},{key:'trials_per_task',name:'Trials per task',min:2},{key:'baseline_evaluations',name:'Baseline evaluations',min:3}]" :key="option.key"><div class="field"><div class="field-label"><div class="field-title" x-text="option.name"></div></div><div class="field-control"><input type="number" :min="option.min" x-model.number="config[option.key]"></div></div></template>
-<div class="field"><div class="field-label"><div class="field-title">Model pricing</div><div class="field-description">USD per million tokens. Prices apply to the configured Agent Zero models; no credentials are stored here.</div></div></div>
-<template x-for="role in ['policy','utility','vision','proposer','analyst','critic','digester','embedding']" :key="role"><div class="field"><div class="field-label"><div class="field-title" x-text="role"></div></div><div class="field-control"><button class="button" x-show="!config.pricing[role]" @click="config.pricing[role] = {input_per_million:null,output_per_million:null}">Set prices</button><template x-if="config.pricing[role]"><div><label>Input <input type="number" min="0" step="0.001" x-model.number="config.pricing[role].input_per_million"></label><label>Output <input type="number" min="0" step="0.001" x-model.number="config.pricing[role].output_per_million"></label><button class="button" @click="delete config.pricing[role]">Clear</button></div></template></div></div></template>
-<div class="field"><div class="field-label"><div class="field-title">Campaign dashboard</div><div class="field-description">Native activation executes generated Python with Agent Zero's normal permissions. Disposable Docker environments isolate evaluation.</div></div><div class="field-control"><button class="button" @click="openModal('/plugins/rrsi/webui/main.html')">Open dashboard</button></div></div>
-</div></template></div></body></html>
+<html>
+<head>
+    <title>RRSI settings</title>
+    <link rel="stylesheet" href="/plugins/rrsi/webui/dashboard.css">
+    <script type="module" src="/plugins/rrsi/webui/settings-store.js"></script>
+</head>
+<body>
+<div x-data>
+<template x-if="config && $store.rrsiSettingsPrototype">
+<div class="rrsi-ui rrsi-settings" x-data="$instantiate($store.rrsiSettingsPrototype)" x-init="loadModelPrices()" x-destroy="alive = false">
+    <div class="rrsi-hero">
+        <div class="rrsi-brand"><img src="/plugins/rrsi/webui/thumbnail.png" width="56" height="56" alt="" class="rrsi-icon"><div><div class="rrsi-eyebrow">RRSI · SETTINGS</div><h2>Self-improvement settings</h2><p>Control how Agent Zero learns and improves.</p></div></div>
+    </div>
+    <section class="rrsi-panel">
+        <div class="rrsi-panel-heading"><div class="rrsi-section-name"><x-icon name="power_settings_new"></x-icon><div><h3>Enable self-improvement</h3><p>Complete environment setup before enabling campaigns.</p></div></div><label class="toggle rrsi-toggle"><input type="checkbox" role="switch" aria-label="Enable self-improvement" x-model="config.enabled"><span class="toggler"></span></label></div>
+        <div class="rrsi-panel-body rrsi-setup-grid">
+            <label class="rrsi-field"><span>Evaluation image</span><input type="text" x-model="config.framework_image" placeholder="Agent Zero image tag or sha256:…" autocomplete="off"><small>Use an existing Docker image. Each campaign freezes its identity.</small></label>
+            <label class="rrsi-field"><span>Daily spending cap <em>USD</em></span><input type="number" min="0" step="0.01" x-model.number="config.daily_budget_usd"><small x-text="Number(config.daily_budget_usd) === 0 ? 'Unlimited spending · set an amount to add a cap.' : 'A positive cap requires prices for every model role.'"></small></label>
+        </div>
+    </section>
+    <details class="rrsi-panel rrsi-disclosure">
+        <summary><span class="rrsi-section-name"><x-icon name="autorenew"></x-icon><span>Automatic operation</span></span><span class="rrsi-summary-end"><span class="rrsi-badge" x-text="automation.filter(option => config[option.key]).length + ' of 3 on'"></span><x-icon name="expand_more" class="rrsi-chevron"></x-icon></span></summary>
+        <div class="rrsi-panel-body rrsi-switch-list"><template x-for="option in automation" :key="option.key"><div class="rrsi-switch-row"><div class="rrsi-section-name"><x-icon :name="option.icon"></x-icon><div><strong x-text="option.label"></strong><p x-text="option.detail"></p></div></div><label class="toggle rrsi-toggle"><input type="checkbox" role="switch" :aria-label="option.label" x-model="config[option.key]"><span class="toggler"></span></label></div></template></div>
+    </details>
+    <details class="rrsi-panel rrsi-disclosure" open>
+        <summary><span class="rrsi-section-name"><x-icon name="payments"></x-icon><span>Model pricing</span></span><span class="rrsi-summary-end"><span class="rrsi-badge" x-text="priced(config) + ' of 8 priced'"></span><x-icon name="expand_more" class="rrsi-chevron"></x-icon></span></summary>
+        <div class="rrsi-panel-body">
+            <div class="rrsi-section-toolbar"><p>Rates in <strong>USD per million tokens</strong>. Blank means unknown.</p><button type="button" class="button rrsi-button" :disabled="loading || available(config) === 0" @click="applyDefaults(config)"><x-icon name="auto_fix_high"></x-icon><span x-text="loading ? 'Reading models…' : 'Use model defaults'"></span></button></div>
+            <p class="rrsi-help">Defaults come from the installed model catalog. Review them before saving; subscription or unavailable rates stay blank. Your existing prices are kept.</p>
+            <div class="rrsi-pricing-scroll" role="region" aria-label="Model token prices" tabindex="0">
+                <div class="rrsi-price-header" aria-hidden="true"><span>Role / model</span><span>Input / 1M</span><span>Output / 1M</span><span></span></div>
+                <template x-for="role in roles" :key="role.key"><div class="rrsi-price-row">
+                    <div class="rrsi-price-role"><strong x-text="role.label"></strong><span :title="models[role.key]?.reason || role.detail" x-text="models[role.key]?.model ? models[role.key].provider + ' / ' + models[role.key].model : role.detail"></span><small x-show="models[role.key]?.source === 'unavailable'" x-text="models[role.key]?.reason"></small></div>
+                    <label class="rrsi-price-input"><span class="rrsi-mobile-label">Input / 1M</span><input type="number" min="0" step="any" inputmode="decimal" placeholder="Not set" :aria-label="role.label + ' input price per million tokens'" :value="config.pricing?.[role.key]?.input_per_million ?? ''" @input="setRate(config, role.key, 'input_per_million', $event.target.value)"></label>
+                    <label class="rrsi-price-input"><span class="rrsi-mobile-label">Output / 1M</span><input type="number" min="0" step="any" inputmode="decimal" placeholder="Not set" :aria-label="role.label + ' output price per million tokens'" :value="config.pricing?.[role.key]?.output_per_million ?? ''" @input="setRate(config, role.key, 'output_per_million', $event.target.value)"></label>
+                    <button type="button" class="button rrsi-icon-button" :aria-label="'Clear ' + role.label + ' prices'" :title="'Clear ' + role.label + ' prices'" :disabled="!config.pricing?.[role.key]" @click="clearRate(config, role.key)"><x-icon name="backspace"></x-icon></button>
+                </div></template>
+            </div>
+            <p class="rrsi-feedback rrsi-warning" role="status" x-show="incomplete(config)"><x-icon name="info"></x-icon>Enter both rates for each priced role, or clear the row before saving.</p>
+        </div>
+    </details>
+    <details class="rrsi-panel rrsi-disclosure">
+        <summary><span class="rrsi-section-name"><x-icon name="science"></x-icon><span>Campaign design</span></span><span class="rrsi-summary-end"><span class="rrsi-badge" x-text="config.rounds + ' rounds · ' + config.candidates + ' candidates'"></span><x-icon name="expand_more" class="rrsi-chevron"></x-icon></span></summary>
+        <div class="rrsi-panel-body">
+            <div class="rrsi-number-grid">
+                <label class="rrsi-field"><span>Rounds</span><input type="number" min="1" step="1" x-model.number="config.rounds"></label>
+                <label class="rrsi-field"><span>Candidates / round</span><input type="number" min="1" max="8" step="1" x-model.number="config.candidates"></label>
+                <label class="rrsi-field"><span>Trials / task</span><input type="number" min="2" step="1" x-model.number="config.trials_per_task"></label>
+                <label class="rrsi-field"><span>Baseline evaluations</span><input type="number" min="3" step="1" x-model.number="config.baseline_evaluations"></label>
+            </div>
+            <div class="rrsi-section-toolbar rrsi-top-gap"><p>Starting defaults: 20 / 2 / 2 / 3. These are not optimized for Agent Zero.</p><button type="button" class="button rrsi-button" @click="resetCampaign(config)"><x-icon name="restart_alt"></x-icon>Restore these defaults</button></div>
+        </div>
+    </details>
+    <div class="rrsi-footnote"><x-icon name="info"></x-icon><p>Docker isolates evaluation. Activated Python runs with Agent Zero’s normal permissions. Save settings before opening the dashboard.</p><button type="button" class="button rrsi-button" @click="openModal('/plugins/rrsi/webui/main.html')"><x-icon name="dashboard"></x-icon>Dashboard</button></div>
+</div>
+</template>
+</div>
+</body>
+</html>

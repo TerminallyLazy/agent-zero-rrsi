@@ -14,6 +14,8 @@ The plugin uses the framework's existing model libraries and standard Python lib
 
 The dashboard exposes setup, campaign control, eligibility, cost, calibration, candidate decisions/diffs, version inspection and rollback. API requests retain Agent Zero's authentication and CSRF checks. Generated skills, tools and roles appear in this dashboard; Agent Zero's ordinary Skills and Agent Editor catalogs cannot represent per-conversation versions.
 
+Settings use native toggle switches, Material icons and collapsible sections. Model pricing has aligned input/output columns and a bounded scroll area. **Use model defaults** adds available estimates from the installed LiteLLM catalog without replacing existing rates or making model calls. Review these estimates against current provider rates before saving. Unknown, subscription and custom-endpoint prices stay unset; local HuggingFace embedding defaults exclude hardware costs. The native `thumbnail.png` is included at both the repository root and `webui/`.
+
 ## Automatic operation
 
 Once configured, the controller checks hourly and starts while Agent Zero is idle. The first campaign can use the bundled curated suite; later campaigns require at least ten newly eligible tasks. Foreground work pauses research between evaluation units. A campaign resumes from durable records after interruption; a changed frozen configuration requires a new campaign.

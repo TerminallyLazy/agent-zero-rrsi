@@ -1,6 +1,6 @@
 # Compatibility and installation boundary
 
-Version 0.1.1 uses Agent Zero's native plugin, function-extension, model, skill, tool-policy and conversation serialization contracts. It preserves the validated 0.1.0 runtime code and adds direct root/web UI branding assets.
+Version 0.1.2 uses Agent Zero's native plugin, function-extension, model, skill, tool-policy and conversation serialization contracts. It preserves the validated 0.1.0 runtime code and adds direct root/web UI branding assets, a compact native UI and a read-only model-price suggestion endpoint.
 
 The implementation has passed native behavioral checks against these separately captured framework revisions:
 
